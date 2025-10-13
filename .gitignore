@@ -1,0 +1,17 @@
+# Archivos de Python y caché
+__pycache__/
+*.pyc
+*.pyo
+
+# Entornos Virtuales (CRÍTICO: No subir la carpeta venv)
+venv/
+env/
+
+# Archivos de datos o logs (Ej. el archivo Excel que subes a Streamlit)
+*.csv
+*.xlsx
+*.log
+
+# Streamlit o archivos generados por el IDE
+.streamlit/
+.vscode/
