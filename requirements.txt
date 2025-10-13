@@ -1,10 +1,7 @@
-# Dependencias principales de la aplicación Streamlit
-streamlit==1.50.0  # Versión específica que fue detectada y con la que se intentó compilar
-pandas>=2.3.3      # Versión usada en tu venv
-numpy>=2.0.0       # Incluida ya que es una dependencia fundamental de Pandas
+# Dependencias necesarias para la ejecución en Streamlit Cloud
+streamlit==1.50.0
+pandas>=2.3.3
+numpy>=2.0.0
 plotly>=5.0.0
 openpyxl>=3.1.2
 fpdf2>=2.7.7
-
-# Dependencia necesaria para la compilación con PyInstaller
-pyinstaller>=6.16.0
