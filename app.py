@@ -1,7 +1,8 @@
-# C:\Users\User\Desktop\respaldo\Inf_ventas\app.py (ESTRATEGIA DE ATAQUE - FINAL)
+# C:\Users\User\Desktop\respaldo\Inf_ventas\app.py (ESTRATEGIA DE ATAQUE - FINAL Y ESTABLE)
 
 import streamlit as st
 import pandas as pd
+import duckdb
 from datetime import date
 import sys
 import os
@@ -9,7 +10,13 @@ import io
 import numpy as np 
 from typing import List, Dict, Any 
 
+# Importaciones específicas para la autenticación
+import streamlit_authenticator as stauth
+import yaml
+from yaml.loader import SafeLoader
+
 # Configuración para importar módulos desde src
+# Asegúrate de que esta ruta sea correcta para tu entorno
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 # -----------------------------------------------------------
@@ -40,7 +47,6 @@ def aplicar_estilos_subtotales(s):
     """
     Función que aplica colores de fondo a la fila según el NIVEL_SUBTOTAL.
     """
-    # Definir los colores base (tonos muy suaves/claros)
     colores = {
         'MARCA': '#E6F7E6',      # Verde tenue
         'CLIENTE': '#FFFFE0',    # Amarillo tenue
@@ -49,20 +55,17 @@ def aplicar_estilos_subtotales(s):
         'DETALLE': ''            # Sin color para filas de detalle
     }
     
-    # Obtener el color basado en la columna NIVEL_SUBTOTAL (agregada en data_processor.py 4.2)
     nivel = s.get('NIVEL_SUBTOTAL', 'DETALLE')
     color = colores.get(nivel, '')
     
-    # Si la fila es DETALLE o el color es vacío, no aplicar estilo
     if not color:
         return [''] * len(s)
 
-    # Aplicar el color de fondo a TODAS las celdas de la fila de subtotal
     return [f'background-color: {color}' for _ in s]
 
 
 # -----------------------------------------------------------
-# LÓGICA DE DIBUJO DE TABLA (MODIFICADA para estilos y corregido NameError)
+# LÓGICA DE DIBUJO DE TABLA
 # -----------------------------------------------------------
 
 def mostrar_tabla_con_subtotales_y_estilo(df_comparativo: pd.DataFrame, ejes_agrupacion_estrategia: List[str]):
@@ -70,26 +73,20 @@ def mostrar_tabla_con_subtotales_y_estilo(df_comparativo: pd.DataFrame, ejes_agr
     Orquesta la generación de subtotales y la aplicación de estilos.
     """
     
-    # Los ejes que efectivamente generarán subtotales (Vendedor, Cliente, Marca)
     ejes_para_subtotal = [eje for eje in COLUMNAS_AGRUPACION if eje in df_comparativo.columns]
-    
-    # Columnas que son métricas (valores)
     ejes_de_fila = ejes_para_subtotal + ['Mes_Nombre']
     columnas_metricas_valor = [col for col in df_comparativo.columns if col not in ejes_de_fila and col not in ['Mes', 'Anio', 'NIVEL_SUBTOTAL']] 
-    
     
     # Reordenar las columnas del DataFrame antes de generar subtotales
     ejes_fila_final = [eje for eje in ejes_de_fila if eje in df_comparativo.columns]
     
     otras_columnas = [col for col in df_comparativo.columns if col not in ejes_fila_final]
     try:
-        # Filtrar solo las columnas que realmente existen antes de reordenar
         cols_finales = [c for c in ejes_fila_final + otras_columnas if c in df_comparativo.columns]
         df_comparativo = df_comparativo[cols_finales]
     except KeyError as e:
         st.warning(f"Error reordenando columnas: {e}. Continuado sin reordenar.")
         
-    # Columnas que contienen porcentajes para el formato
     columnas_porcentaje = [col for col in columnas_metricas_valor if '%' in col]
 
 
@@ -112,8 +109,8 @@ def mostrar_tabla_con_subtotales_y_estilo(df_comparativo: pd.DataFrame, ejes_agr
     # 3b. Aplicar colores de fondo usando style.apply (SOLUCIÓN DE COLORES)
     if 'NIVEL_SUBTOTAL' in df_con_subtotales.columns:
         if not isinstance(df_styled, pd.io.formats.style.Styler):
-             df_styled = df_styled.style
-             
+            df_styled = df_styled.style
+            
         styler_final = df_styled.apply(aplicar_estilos_subtotales, axis=1)
         
     else:
@@ -125,55 +122,32 @@ def mostrar_tabla_con_subtotales_y_estilo(df_comparativo: pd.DataFrame, ejes_agr
     # Al final, eliminamos la columna NIVEL_SUBTOTAL para la presentación visual
     st.dataframe(styler_final.hide(subset=['NIVEL_SUBTOTAL'], axis='columns'), width='stretch')
     
-    # Se debe devolver el DataFrame original con subtotales (incluyendo NIVEL_SUBTOTAL) para el PDF/Análisis
     return df_con_subtotales.copy()
 
 
 # -----------------------------------------------------------
-# FUNCIÓN PRINCIPAL DE STREAMLIT (Con corrección NameError)
+# FUNCIÓN DE CARGA DE DATOS (VERSION CACHEADA)
 # -----------------------------------------------------------
-
-@st.cache_resource
+@st.cache_resource(show_spinner="Conectando con DuckDB y cargando datos...")
 def obtener_data_cargada():
     """Función para cargar y cachear los datos en st.cache_resource."""
-    with st.spinner("Conectando con DuckDB y cargando datos..."):
-        df_ventas_temp = cargar_y_procesar_datos_completos() 
+    df_ventas_temp = cargar_y_procesar_datos_completos() 
+    
+    if df_ventas_temp is None or df_ventas_temp.empty:
+        st.error("Error al cargar datos desde DuckDB. Verifique la conexión y el archivo 'ventas_db.duckdb'.")
+        return None
+        
+    st.success(f"✅ Base de datos DuckDB cargada exitosamente. Filas: {len(df_ventas_temp):,}")
     return df_ventas_temp
 
-def main():
-    """Función principal que dibuja la interfaz de Streamlit."""
-    
-    st.set_page_config(
-        page_title="Informe de Ventas Estratégico (DuckDB)", 
-        layout="wide", 
-        initial_sidebar_state="expanded"
-    )
-    
-    st.title("💾 Portal de Análisis de Ventas (DuckDB)")
-    st.subheader("Paso 1: Carga de Datos desde la Base de Datos")
 
-    if 'data' not in st.session_state:
-        df_ventas_temp = obtener_data_cargada()
+# -----------------------------------------------------------
+# FUNCIÓN PRINCIPAL DEL INFORME
+# -----------------------------------------------------------
 
-        if df_ventas_temp is not None and not df_ventas_temp.empty:
-            st.session_state['data'] = df_ventas_temp
-            st.session_state['data_source'] = 'DuckDB'
-            st.success(f"✅ Base de datos DuckDB cargada exitosamente. Filas: {len(df_ventas_temp):,}")
-        else:
-            st.session_state['data'] = None
-            st.session_state['data_source'] = None
-            st.error("Error al cargar datos desde DuckDB. Verifique la conexión y el archivo 'ventas_db.duckdb'.")
-            st.stop()
-            
-    df_ventas = st.session_state['data']
-    
-    if df_ventas is None:
-        st.stop() 
+def run_report_interface(df_ventas: pd.DataFrame):
+    """Contiene toda la lógica de la interfaz y visualización del informe."""
 
-    # -----------------------------------
-    # Inicio de la interfaz principal
-    # -----------------------------------
-    
     st.title("📊 Informe de Ventas y Estrategia de Clientes")
     st.markdown("---")
 
@@ -184,7 +158,7 @@ def main():
     with st.sidebar:
         st.header("⚙️ Control de Datos y Filtros")
         
-        verificar_datos_terminal_inicial(df_ventas)
+        # Opcional: verificar_datos_terminal_inicial(df_ventas)
         
         filtros, config = dibujar_barra_lateral_y_obtener_config(df_ventas.copy(), "ventas_db.duckdb") 
         
@@ -207,7 +181,7 @@ def main():
         st.warning("No hay datos disponibles para la combinación de filtros seleccionada. Ajuste sus filtros.")
         return
 
-    verificar_conteo_filtros_aplicados(df_filtrado_base, filtros)
+    # Opcional: verificar_conteo_filtros_aplicados(df_filtrado_base, filtros)
     
     # FIX CLAVE 1: GENERACIÓN DE MES_NOMBRE
     if 'Mes' in df_filtrado_base.columns and 'Mes_Nombre' not in df_filtrado_base.columns:
@@ -220,8 +194,7 @@ def main():
             st.warning(f"Usando 'Monto_Venta' como alias temporal para '{metrica_seleccionada_key}'.")
         else:
             st.error(f"Error: La métrica principal '{metrica_seleccionada_key}' no se encuentra en el DataFrame. Revise la función de carga.")
-            st.stop()
-
+            return
 
     if ejes_tabla_estrategia is None:
         ejes_tabla_estrategia = COLUMNAS_AGRUPACION
@@ -241,8 +214,8 @@ def main():
             ejes_de_agrupacion_para_pivot = [eje for eje in ejes_de_agrupacion if eje != 'Anio' and eje in df_filtrado_base.columns]
             
             if 'Mes_Nombre' in df_filtrado_base.columns and 'Mes_Nombre' not in ejes_de_agrupacion_para_pivot:
-                 ejes_de_agrupacion_para_pivot.append('Mes_Nombre')
-                 
+                ejes_de_agrupacion_para_pivot.append('Mes_Nombre')
+                
             st.info("Estrategia de Ataque Activa: Agrupación anidada por **Vendedor > Cliente > Marca** con detalle por **Mes**.")
         else:
             ejes_de_agrupacion_para_pivot = [eje for eje in ejes_de_agrupacion if eje != 'Anio' and eje in df_filtrado_base.columns]
@@ -279,7 +252,7 @@ def main():
                     
                     df_final_comparativo = pd.merge(
                         df_final_comparativo, 
-                        df_pivot[columnas_existentes_en_pivot], # <-- CORRECCIÓN APLICADA AQUÍ
+                        df_pivot[columnas_existentes_en_pivot], 
                         on=ejes_comunes, 
                         how='outer'
                     )
@@ -291,7 +264,7 @@ def main():
                 ascending = False 
                 col_ordenamiento = None
                 crecimiento_col_name = f'%_CRECIMIENTO_{metrica_seleccionada_key}'
-                monto_col_name = f'{metrica_seleccionada_key}_{anios_usados[-1]}'
+                monto_col_name = f'{metrica_seleccionada_key}_{anios_usados[-1]}' 
                 
                 if ordenamiento_estrategico == 'Declive' and crecimiento_col_name in df_final_comparativo.columns:
                     col_ordenamiento = crecimiento_col_name
@@ -334,7 +307,7 @@ def main():
                 df_final_comparativo.rename(columns=final_renaming_dict, inplace=True)
                 
                 if 'Anio' in df_final_comparativo.columns:
-                         df_final_comparativo.drop(columns=['Anio'], inplace=True)
+                        df_final_comparativo.drop(columns=['Anio'], inplace=True)
 
                 df_tabla_base = df_final_comparativo
             
@@ -347,7 +320,7 @@ def main():
                 if df_pivot_tabla is not None and not df_pivot_tabla.empty:
                     metric_cols = [c for c in df_pivot_tabla.columns if c not in ejes_de_agrupacion_para_pivot and c != 'Anio']
                     if metric_cols:
-                             df_pivot_tabla.rename(columns={metric_cols[0]: f'{METRICAS_BASE.get(metrica_seleccionada_key, metrica_seleccionada_key)[:3]}. Total'}, inplace=True)
+                        df_pivot_tabla.rename(columns={metric_cols[0]: f'{METRICAS_BASE.get(metrica_seleccionada_key, metrica_seleccionada_key)[:3]}. Total'}, inplace=True)
                 
                 df_tabla_base = df_pivot_tabla
         
@@ -359,7 +332,98 @@ def main():
         
         st.markdown("---")
         
-    # ... (El resto de la lógica de gráficos y PDF permanece igual) ...
+    # --- (Añade aquí tu lógica de generación de gráficos) ---
+    
+    # 3. Descarga de PDF 
+    st.sidebar.markdown("---")
+    if tablas_para_pdf:
+         # Nota: Se asume que 'generar_pdf_informe' está implementado y 'config['rango_fechas']' existe
+         st.sidebar.download_button(
+             label="Descargar Informe PDF",
+             data=generar_pdf_informe(tablas_para_pdf, figuras_para_pdf, config.get('rango_fechas', 'Reporte')), 
+             file_name="informe_ventas_rimiec.pdf",
+             mime="application/pdf"
+         )
+    
+
+
+# -----------------------------------------------------------
+# FUNCIÓN PRINCIPAL DE STREAMLIT (REPARADA: Manejo de st.session_state)
+# -----------------------------------------------------------
+
+def main():
+    """Función principal que maneja el inicio de sesión y el flujo del informe."""
+    
+    st.set_page_config(
+        page_title="Informe de Ventas Estratégico (DuckDB)", 
+        layout="wide", 
+        initial_sidebar_state="expanded"
+    )
+    
+    # -----------------------------------
+    # LÓGICA DE AUTENTICACIÓN
+    # -----------------------------------
+    try:
+        # Cargar las credenciales de YAML
+        with open('config.yaml', 'r') as file:
+            config_auth = yaml.load(file, Loader=SafeLoader)
+
+        authenticator = stauth.Authenticate(
+            config_auth['credentials'],
+            config_auth['cookie']['name'],
+            config_auth['cookie']['key'],
+            config_auth['cookie']['expiry_days']
+        )
+
+        # 1. Mostrar formulario de login (actualiza automáticamente st.session_state)
+        # La tupla name, authentication_status, username se sigue recibiendo para la primera ejecución,
+        # pero usamos st.session_state para la lógica de visualización.
+        authenticator.login('main')
+
+        # 2. Manejo del Estado de Autenticación usando Session State
+        auth_status = st.session_state.get("authentication_status")
+        user_name = st.session_state.get("name")
+        
+        if auth_status:
+            # 1. USUARIO AUTENTICADO
+            
+            # 1a. Mostrar Logout y Mensaje de Bienvenida
+            st.sidebar.success(f"Bienvenido, {user_name} 👋")
+            with st.sidebar:
+                authenticator.logout('Cerrar Sesión', 'main')
+            
+            st.title("💾 Portal de Análisis de Ventas (DuckDB)")
+            st.subheader("Paso 1: Carga de Datos desde la Base de Datos")
+
+            # 1b. Cargar la data solo si está autenticado
+            df_ventas = obtener_data_cargada()
+
+            if df_ventas is not None:
+                # 1c. Ejecutar la interfaz completa del informe
+                run_report_interface(df_ventas)
+            
+        elif auth_status is False:
+            # 2. LOGIN FALLIDO
+            st.sidebar.error('Nombre de usuario/contraseña incorrectos')
+            st.warning("Acceso Denegado. Por favor, ingrese credenciales válidas.")
+            # Borrar el título de la app para que solo se vea el login/warning
+            st.markdown("##") 
+
+        elif auth_status is None:
+            # 3. NO SE HA INTENTADO EL LOGIN (Página inicial)
+            st.sidebar.info('Por favor, ingresa tus credenciales')
+            st.title("💾 Portal de Análisis de Ventas (DuckDB)")
+            st.image("https://via.placeholder.com/600x300?text=Rimec+Informe+de+Ventas")
+            st.markdown("## Acceso Restringido")
+            st.markdown("Este portal requiere autenticación para acceder a los informes estratégicos de ventas.")
+            st.markdown("---")
+
+    except FileNotFoundError:
+        st.error("Error FATAL: Archivo 'config.yaml' no encontrado. Asegúrate de que existe en la raíz del proyecto para la autenticación.")
+    except Exception as e:
+        # Captura cualquier otro error, como un problema de YAML o conexión inicial.
+        st.error(f"Error inesperado al iniciar la aplicación: {e}")
+
 
 # Ejecutar la aplicación
 if __name__ == "__main__":
