@@ -1,3 +1,4 @@
+C:\Users\User\Desktop\respaldo\Inf_ventas\config.yaml
 cookie:
   # Nombre de la cookie para la sesión (puedes dejar este)
   name: streamlit_app_rimec
@@ -13,15 +14,15 @@ credentials:
       email: egidio@empresa.com
       # Nombre mostrado en la barra lateral
       name: Egidio
-      # ¡IMPORTANTE! PEGA el PRIMER hash de tu terminal aquí
-      password: "$2b$12$wyvocj.r7t36JwqMWeOoZevSKIgqUk2d64eKwfo7VmIF7C1Ohyz0y" 
+      # ¡CORREGIDO! EL NOMBRE DEL CAMPO DEBE SER hashed_password
+      hashed_password: "$2b$12$wyvocj.r7t36JwqMWeOoZevSKIgqUk2d64eKwfo7VmIF7C1Ohyz0y" 
     Graciela:
       email: graciela@empresa.com
       name: Graciela
-      # ¡IMPORTANTE! PEGA el SEGUNDO hash de tu terminal aquí
-      password: "$2b$12$uSwsT9EzMzz6CpDzUiOOLeyaF8a7PQl/6CZP6U1ZTGyR0Ao2zJvPe"
+      # ¡CORREGIDO!
+      hashed_password: "$2b$12$uSwsT9EzMzz6CpDzUiOOLeyaF8a7PQl/6CZP6U1ZTGyR0Ao2zJvPe"
     Directorio:
       email: directorio@empresa.com
       name: Directorio
-      # ¡IMPORTANTE! PEGA el TERCER hash de tu terminal aquí
-      password: "$2b$12$LJdx.YA5iuq.nG16jl980ueHuuTdEITI/3HtaOF5jiJtoh/ejuy6K"
+      # ¡CORREGIDO!
+      hashed_password: "$2b$12$LJdx.YA5iuq.nG16jl980ueHuuTdEITI/3HtaOF5jiJtoh/ejuy6K"
