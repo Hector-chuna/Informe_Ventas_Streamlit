@@ -14,7 +14,7 @@ credentials:
       # Nombre mostrado en la barra lateral
       name: Egidio
       # ¡IMPORTANTE! PEGA el PRIMER hash de tu terminal aquí
-      password: "$2b$12$olLgS6tt2FL.hcADoeODN.JX1em1FkY5Vh7cXjbuZn8JuLOPI1lsm" 
+      password: "$2b$12$wyvocj.r7t36JwqMWeOoZevSKIgqUk2d64eKwfo7VmIF7C1Ohyz0y" 
     Graciela:
       email: graciela@empresa.com
       name: Graciela
