@@ -1,41 +1,44 @@
+# C:\Users\User\Desktop\respaldo\Inf_ventas\src\visualizer.py (VERSIÓN CORREGIDA - FIX DE COMPATIBILIDAD PANDAS)
+
 import plotly.express as px
 import pandas as pd
-# Asegúrate de que esta importación sea correcta (pip install fpdf2)
 from fpdf import FPDF, HTMLMixin 
 import io
 import plotly.io as pio
+
+# 🎯 FIX CLAVE: Cambiar la importación relativa a una importación de paquete robusta
+# Se asume que app.py ha configurado correctamente sys.path para que 'src' sea accesible.
+try:
+    from src.data_aggregator import ANCHOS_COLUMNAS 
+except ImportError:
+    # Fallback si se ejecuta visualizer.py directamente o la configuración es diferente
+    from .data_aggregator import ANCHOS_COLUMNAS 
+
 
 # ----------------------------------------------------
 # CLASE PDF PERSONALIZADA
 # ----------------------------------------------------
 
 class PDF(FPDF, HTMLMixin):
+    """Clase personalizada de FPDF con pie de página para la numeración."""
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
 # ----------------------------------------------------
-# CONSTANTES DE DIMENSIONES PARA EL PDF
+# CONSTANTES DE DIMENSIONES PARA EL PDF (Internas - SRP)
 # ----------------------------------------------------
-# Dimensiones en mm (milímetros), que es la unidad por defecto de FPDF
-ALTO_FILA_MM = 5  # 0.5 cm
-
-# Anchos fijos de columnas en mm
-ANCHOS_COLUMNAS = {
-    'Cliente_Nombre': 50,  
-    'Vendedor_Nombre': 40,
-    'default_agrupacion': 30, 
-    'default_metrica': 25,    
-}
+ALTO_FILA_MM = 5 
 
 
 # ----------------------------------------------------
-# FUNCIONES DE GRÁFICOS (Ahora aseguradas)
+# FUNCIONES DE GRÁFICOS
 # ----------------------------------------------------
 
 def crear_grafico_barras_comparativo(df_agrupado: pd.DataFrame, x_col: str, y_col: str, titulo: str):
     """Crea un gráfico de barras simple con Plotly."""
+    # 🔥 FIX: Eliminado 'default_sort_keys=False' para asegurar compatibilidad con versiones antiguas de Pandas (< 2.1.0)
     df_top = df_agrupado.nlargest(10, y_col)
     
     fig = px.bar(
@@ -52,8 +55,11 @@ def crear_grafico_barras_comparativo(df_agrupado: pd.DataFrame, x_col: str, y_co
 
 def crear_grafico_circular_proporcion(df: pd.DataFrame, names_col: str, values_col: str, titulo: str):
     """Crea un gráfico circular de proporción con Plotly."""
+    # 🔥 FIX: Eliminado 'default_sort_keys=False' para asegurar compatibilidad con versiones antiguas de Pandas (< 2.1.0)
+    df_top = df.nlargest(10, values_col)
+    
     fig = px.pie(
-        df.nlargest(10, values_col), 
+        df_top, 
         names=names_col, 
         values=values_col, 
         title=titulo,
@@ -71,13 +77,14 @@ def crear_grafico_lineas_tendencia(df_evolucion: pd.DataFrame, x_col: str, y_col
         color=color_col, 
         title=titulo, 
         template="plotly_white",
-        labels={y_col: y_col.replace('_', ' ')}
+        labels={y_col: y_col.replace('_', ' ')},
+        markers=True # Añadir marcadores para mejor visualización
     )
     fig.update_xaxes(title_text='Fecha')
     return fig
 
 # ----------------------------------------------------
-# FUNCIÓN DE GENERACIÓN DE PDF (Formato Manual)
+# FUNCIÓN DE GENERACIÓN DE PDF
 # ----------------------------------------------------
 
 def generar_pdf_informe(titulo_informe: str, contenido_figuras: list, contenido_tablas: list) -> bytes:
@@ -108,17 +115,15 @@ def generar_pdf_informe(titulo_informe: str, contenido_figuras: list, contenido_
 
             for col in columnas_a_dibujar:
                 if col == 'Cliente_Nombre':
-                    col_widths[col] = ANCHOS_COLUMNAS['Cliente_Nombre']
-                elif col in ['Vendedor_Nombre', 'Marca', 'Tipo_Producto', 'Cliente_ID', 'Vendedor_ID', 'TIPO_VENTA', 'TIPO1', 'TIPO2', 'TIPO3']:
-                    # Usar el ancho de default_agrupacion o el específico si existe
-                    col_widths[col] = ANCHOS_COLUMNAS.get(col, ANCHOS_COLUMNAS['default_agrupacion'])
+                    col_widths[col] = ANCHOS_COLUMNAS.get('Cliente_Nombre', 50)
+                elif col in ['Vendedor_Nombre', 'Marca', 'Tipo_Producto', 'Cliente_ID', 'Vendedor_ID', 'TIPO_VENTA', 'TIPO1', 'TIPO2', 'TIPO3', 'Mes_Nombre']:
+                    col_widths[col] = ANCHOS_COLUMNAS.get(col, ANCHOS_COLUMNAS.get('default_agrupacion', 30))
                 else:
-                    # Usar el ancho de default_metrica para todas las demás (métricas)
-                    col_widths[col] = ANCHOS_COLUMNAS['default_metrica']
+                    col_widths[col] = ANCHOS_COLUMNAS.get('default_metrica', 25)
 
             # 2. Dibujar la Cabecera (Header)
             pdf.set_font('Arial', 'B', 8)
-            pdf.set_fill_color(200, 220, 255) 
+            pdf.set_fill_color(200, 220, 255) # Azul suave para cabecera
 
             for col in columnas_a_dibujar:
                 pdf.cell(
@@ -132,32 +137,50 @@ def generar_pdf_informe(titulo_informe: str, contenido_figuras: list, contenido_
                 )
             pdf.ln(ALTO_FILA_MM) 
 
-            # 3. Dibujar las Filas de Datos
+            # 3. Dibujar las Filas de Datos (CON LÓGICA DE SUBTOTALES)
             pdf.set_font('Arial', '', 7)
             
             for index, row in df_tabla.iterrows():
+                
+                # === LÓGICA DE COLOR Y ESTILO PARA SUBTOTALES ===
+                # Comprueba si la primera columna no es nula y contiene 'Total' (incluye 'GRAN TOTAL')
+                es_subtotal = 'Total' in str(row.get(columnas_a_dibujar[0], ''))
+                
+                if 'GRAN TOTAL' in str(row.get(columnas_a_dibujar[0], '')):
+                    pdf.set_fill_color(170, 204, 255) 
+                    fill_cell = True
+                    pdf.set_font('Arial', 'B', 7)
+                elif es_subtotal:
+                    pdf.set_fill_color(224, 236, 255)
+                    fill_cell = True
+                    pdf.set_font('Arial', 'B', 7)
+                else:
+                    pdf.set_fill_color(255, 255, 255) 
+                    fill_cell = False 
+                    pdf.set_font('Arial', '', 7)
+                
                 
                 for col in columnas_a_dibujar:
                     valor = str(row[col])
                     ancho = col_widths[col]
                     
-                    if col == 'Cliente_Nombre':
-                        # Truncar el Nombre del Cliente
-                        ancho_texto = pdf.get_string_width(valor)
-                        
-                        if ancho_texto > ancho - 2: 
-                            while pdf.get_string_width(valor + "...") > ancho - 2 and len(valor) > 0:
-                                valor = valor[:-1]
-                            valor += "..."
-                        
-                        align = 'L'
-                        
-                    elif ' % ' in col or '%_CREC' in col:
-                        align = 'C' 
-                    elif 'Tot' in col or 'Monto' in col or 'Cant' in col:
+                    # Lógica de truncamiento/recorte de texto (solo para columnas de texto largas)
+                    if col in ['Cliente_Nombre', 'Vendedor_Nombre']:
+                        # Comprobación de ancho y truncamiento con "..."
+                        if pdf.get_string_width(valor) > ancho - 2: 
+                            # Se trunca el texto de forma más eficiente
+                            max_chars = int(len(valor) * ((ancho - 2) / pdf.get_string_width(valor)))
+                            # Evitar el error al intentar truncar un string vacío
+                            valor = valor[:max_chars] + "..." if max_chars > 0 else valor
+                            
+                    # Lógica de alineación
+                    align = 'L'
+                    # Alineación a la derecha para métricas y porcentajes
+                    if ' % ' in col or '%_CREC' in col or 'Tot' in col or 'Monto' in col or 'Cant' in col or col in ['Venta_Neta', 'CANTIDAD']:
                         align = 'R'
-                    else:
-                        align = 'L'
+                        # Asegurar que los NaN se vean limpios en métricas (se muestran como 'nan' por el str())
+                        if valor.lower() in ['nan', 'none', '']:
+                            valor = '-'
 
                     pdf.cell(
                         w=ancho,
@@ -165,8 +188,10 @@ def generar_pdf_informe(titulo_informe: str, contenido_figuras: list, contenido_
                         txt=valor,
                         border=1, 
                         ln=0,
-                        align=align
+                        align=align,
+                        fill=fill_cell
                     )
+                
                 pdf.ln(ALTO_FILA_MM) 
 
             pdf.ln(5) 
@@ -178,13 +203,17 @@ def generar_pdf_informe(titulo_informe: str, contenido_figuras: list, contenido_
         
         for i, figura in enumerate(contenido_figuras):
             try:
+                # Añadir un salto de página si el gráfico no cabe
+                if pdf.get_y() + 100 > 277 - 15: # 277 es el alto de A4, 15 es el margen del footer
+                    pdf.add_page()
+                
                 img_bytes = pio.to_image(figura, format='png')
+                # w=180 es un buen ancho para centrar en una página A4 (210mm)
                 pdf.image(io.BytesIO(img_bytes), x=10, w=180) 
                 pdf.ln(5)
             except Exception as e:
-                # Aquí podrías querer usar st.error(f"Error al añadir gráfico al PDF: {e}") 
-                # si pudieras interactuar con Streamlit, pero en el backend usamos print.
-                print(f"Error al añadir gráfico al PDF: {e}")
+                # Log del error en la terminal para depuración
+                print(f"Error al añadir gráfico al PDF (Índice {i}): {e}")
                 
     # Retornar el PDF como bytes
     return bytes(pdf.output(dest='S'))

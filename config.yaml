@@ -1,0 +1,27 @@
+cookie:
+  # Nombre de la cookie para la sesión (puedes dejar este)
+  name: streamlit_app_rimec
+  # Clave secreta para firmar la cookie (¡Cámbiala a una cadena aleatoria y secreta!)
+  key: rimec_sales_report_secret_key_2025
+  # Días que la sesión permanecerá activa antes de requerir un nuevo login
+  expiry_days: 30
+
+credentials:
+  usernames:
+    Egidio:
+      # Correo electrónico (opcional, pero buena práctica)
+      email: egidio@empresa.com
+      # Nombre mostrado en la barra lateral
+      name: Egidio
+      # ¡IMPORTANTE! PEGA el PRIMER hash de tu terminal aquí
+      password: "$2b$12$olLgS6tt2FL.hcADoeODN.JX1em1FkY5Vh7cXjbuZn8JuLOPI1lsm" 
+    Graciela:
+      email: graciela@empresa.com
+      name: Graciela
+      # ¡IMPORTANTE! PEGA el SEGUNDO hash de tu terminal aquí
+      password: "$2b$12$uSwsT9EzMzz6CpDzUiOOLeyaF8a7PQl/6CZP6U1ZTGyR0Ao2zJvPe"
+    Directorio:
+      email: directorio@empresa.com
+      name: Directorio
+      # ¡IMPORTANTE! PEGA el TERCER hash de tu terminal aquí
+      password: "$2b$12$LJdx.YA5iuq.nG16jl980ueHuuTdEITI/3HtaOF5jiJtoh/ejuy6K"
