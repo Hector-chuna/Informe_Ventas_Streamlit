@@ -9,19 +9,17 @@ cookie:
 credentials:
   usernames:
     Egidio:
-      # Correo electrónico (opcional, pero buena práctica)
       email: egidio@empresa.com
-      # Nombre mostrado en la barra lateral
       name: Egidio
-      # ¡CORREGIDO! EL NOMBRE DEL CAMPO DEBE SER hashed_password
-      hashed_password: "$2b$12$wyvocj.r7t36JwqMWeOoZevSKIgqUk2d64eKwfo7VmIF7C1Ohyz0y" 
+      # ¡ATENCIÓN! Usamos 'password' por el error que devuelve la librería.
+      password: "$2b$12$wyvocj.r7t36JwqMWeOoZevSKIgqUk2d64eKwfo7VmIF7C1Ohyz0y" 
     Graciela:
       email: graciela@empresa.com
       name: Graciela
-      # ¡CORREGIDO!
-      hashed_password: "$2b$12$uSwsT9EzMzz6CpDzUiOOLeyaF8a7PQl/6CZP6U1ZTGyR0Ao2zJvPe"
+      # ¡ATENCIÓN!
+      password: "$2b$12$uSwsT9EzMzz6CpDzUiOOLeyaF8a7PQl/6CZP6U1ZTGyR0Ao2zJvPe"
     Directorio:
       email: directorio@empresa.com
       name: Directorio
-      # ¡CORREGIDO!
-      hashed_password: "$2b$12$LJdx.YA5iuq.nG16jl980ueHuuTdEITI/3HtaOF5jiJtoh/ejuy6K"
+      # ¡ATENCIÓN!
+      password: "$2b$12$LJdx.YA5iuq.nG16jl980ueHuuTdEITI/3HtaOF5jiJtoh/ejuy6K"
