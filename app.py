@@ -337,13 +337,13 @@ def run_report_interface(df_ventas: pd.DataFrame):
     # 3. Descarga de PDF 
     st.sidebar.markdown("---")
     if tablas_para_pdf:
-         # Nota: Se asume que 'generar_pdf_informe' está implementado y 'config['rango_fechas']' existe
-         st.sidebar.download_button(
-             label="Descargar Informe PDF",
-             data=generar_pdf_informe(tablas_para_pdf, figuras_para_pdf, config.get('rango_fechas', 'Reporte')), 
-             file_name="informe_ventas_rimiec.pdf",
-             mime="application/pdf"
-         )
+          # Nota: Se asume que 'generar_pdf_informe' está implementado y 'config['rango_fechas']' existe
+          st.sidebar.download_button(
+              label="Descargar Informe PDF",
+              data=generar_pdf_informe(tablas_para_pdf, figuras_para_pdf, config.get('rango_fechas', 'Reporte')), 
+              file_name="informe_ventas_rimiec.pdf",
+              mime="application/pdf"
+          )
     
 
 
@@ -376,8 +376,6 @@ def main():
         )
 
         # 1. Mostrar formulario de login (actualiza automáticamente st.session_state)
-        # La tupla name, authentication_status, username se sigue recibiendo para la primera ejecución,
-        # pero usamos st.session_state para la lógica de visualización.
         authenticator.login('main')
 
         # 2. Manejo del Estado de Autenticación usando Session State
